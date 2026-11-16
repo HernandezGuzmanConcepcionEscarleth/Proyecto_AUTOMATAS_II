@@ -1,0 +1,10 @@
+num a = 20
+num b = 5
+num suma = a + b
+num resta = a - b
+num multiplicacion = a * b
+num division = a / b
+mostrar suma
+mostrar resta
+mostrar multiplicacion
+mostrar division

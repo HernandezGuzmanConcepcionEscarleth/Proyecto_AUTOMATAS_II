@@ -1,0 +1,7 @@
+nota: pruebas de errores semanticos
+num a = 4
+num a = 8
+num b = c + 2
+num x = "hola"
+num y = 10 / 0
+z = 5

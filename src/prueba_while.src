@@ -1,0 +1,5 @@
+num x = 0
+mientras x < 3 hacer
+    mostrar x
+    x = x + 1
+fin

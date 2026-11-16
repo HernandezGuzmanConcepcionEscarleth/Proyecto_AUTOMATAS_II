@@ -1,0 +1,5 @@
+nota: prueba valida Numlang (Fase 2 - Integrante 1)
+num a = 4
+num b = 3
+num resultado = a + b * 2
+mostrar resultado

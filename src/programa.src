@@ -1,0 +1,7 @@
+num x = 5
+num w = x * 2 + 1
+si w > 10 entonces
+    mostrar "mayor"
+si_no
+    mostrar "menor"
+fin

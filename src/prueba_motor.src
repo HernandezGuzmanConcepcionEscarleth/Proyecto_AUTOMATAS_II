@@ -1,0 +1,13 @@
+num a = 5 + 3
+num b = a * 1
+num x = 0
+num w = 10
+num z = w + 0
+
+mientras x < 5 hacer
+    a = a + 1
+    b = b * 1
+    x = x + 1
+fin
+
+mostrar z

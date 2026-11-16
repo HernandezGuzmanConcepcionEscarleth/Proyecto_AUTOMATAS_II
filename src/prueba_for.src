@@ -1,0 +1,5 @@
+num x = 0
+para i = 1 hasta 5 hacer
+    x = x + 1
+    mostrar x
+fin
