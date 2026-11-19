@@ -41,4 +41,5 @@ Las siguientes palabras no pueden usarse como nombres de variables:
 ## Créditos
 - **Integrante 1:** Análisis Semántico.
 - **Integrante 2:** Generación de Código Intermedio.
-- **Integrante 3:** Motor de Optimización.
+- **Integrante 3:** Motor de Optimización. 
+- **Integrante 4:** Generacion de codigo objeto. 

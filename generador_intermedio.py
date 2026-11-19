@@ -492,6 +492,14 @@ class GeneradorCodigoIntermedio:
                 paso_str = paso_str or "1"
                 _, idx_fin = self._buscar_cierre_bloque(lineas, i)
 
+                arbol_paso = crear_arbol_extendido(paso_str)
+                paso_negativo = (
+                    arbol_paso["tipo"] == "negativo"
+                    or (arbol_paso["tipo"] == "numero" and arbol_paso["valor"] < 0)
+                )
+                operador_condicion = ">=" if paso_negativo else "<="
+                simbolo_condicion = ">=" if paso_negativo else "<="
+
                 lugar_ini = self.generar_expresion(crear_arbol_extendido(ini_str))
                 self.gen("=", lugar_ini, "-", var_ctrl, f"Inicialización ciclo para {var_ctrl} = {lugar_ini}")
 
@@ -501,12 +509,12 @@ class GeneradorCodigoIntermedio:
 
                 lugar_lim = self.generar_expresion(crear_arbol_extendido(lim_str))
                 temp_cond = self.nuevoTemp()
-                self.gen("<=", var_ctrl, lugar_lim, temp_cond, f"Compara condición de parada {var_ctrl} <= {lugar_lim}")
+                self.gen(operador_condicion, var_ctrl, lugar_lim, temp_cond, f"Compara condición de parada {var_ctrl} {simbolo_condicion} {lugar_lim}")
                 self.gen("if_false", temp_cond, "-", etq_fin, f"Si {temp_cond} es falso, termina el ciclo en {etq_fin}")
 
                 self._procesar_bloque(lineas, i + 1, idx_fin)
 
-                lugar_paso = self.generar_expresion(crear_arbol_extendido(paso_str))
+                lugar_paso = self.generar_expresion(arbol_paso)
                 temp_inc = self.nuevoTemp()
                 self.gen("+", var_ctrl, lugar_paso, temp_inc, f"Incrementa variable de control {var_ctrl}")
                 self.gen("=", temp_inc, "-", var_ctrl, f"Actualiza {var_ctrl} = {temp_inc}")

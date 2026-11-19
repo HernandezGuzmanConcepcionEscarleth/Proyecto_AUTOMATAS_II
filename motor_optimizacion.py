@@ -97,10 +97,21 @@ class MotorOptimizacion:
     # 3. ELIMINACIÓN DE CÓDIGO MUERTO (Global)
     def eliminar_codigo_muerto(self):
         # Identificar variables que se USAN en instrucciones críticas (mostrar, control, etc.)
+        # Además, cualquier nombre leído en algún cuádruplo se considera usado: esto
+        # conserva las definiciones que alimentan saltos hacia atrás (bucles).
+        usados_en_algun_lugar = set()
+        for c in self.cuadruplos_opt:
+            if c["arg1"] != "-": usados_en_algun_lugar.add(c["arg1"])
+            if c["arg2"] != "-": usados_en_algun_lugar.add(c["arg2"])
+
         variables_vivas = set()
         for c in reversed(self.cuadruplos_opt):
-            op = c["op"]
+            op, res = c["op"], c["res"]
             if op in ("mostrar", "if_false", "goto", "retornar", "llamar", "param"):
+                if c["arg1"] != "-": variables_vivas.add(c["arg1"])
+                if c["arg2"] != "-": variables_vivas.add(c["arg2"])
+            elif res in variables_vivas or res == "-":
+                # Si el resultado es vivo (o no hay resultado), propagamos sus operandos.
                 if c["arg1"] != "-": variables_vivas.add(c["arg1"])
                 if c["arg2"] != "-": variables_vivas.add(c["arg2"])
             else:
@@ -118,7 +129,7 @@ class MotorOptimizacion:
                 nuevas.append(c)
                 continue
             
-            if res not in variables_vivas and res != "-":
+            if res not in variables_vivas and res not in usados_en_algun_lugar and res != "-":
                 self._registrar_cambio("Eliminación de Código Muerto (Global)", 
                     f"Eliminada instrucción '{c['instruccion_equivalente']}' (variable '{res}' no usada después)")
             else:
