@@ -1,0 +1,5 @@
+nota: Demostracion general sin errores.
+num a = 4
+num b = 3
+num resultado = a + b * 2
+mostrar resultado

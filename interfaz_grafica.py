@@ -20,6 +20,8 @@ from generador_objeto import (
     ensamblar_enlazar_ejecutar,
 )
 from gestor_memoria import GestorMemoria
+from diagnosticos_en_vivo import analizar_en_vivo, Diagnostico
+from vista_ansi import LienzoAnsi, tiene_dibujo_ansi, sin_codigos_ansi
 
 RAIZ = Path(__file__).resolve().parent
 DIRECTORIO_BUILD = RAIZ / "build"
@@ -91,11 +93,18 @@ class AplicacionNumlang(tk.Tk):
         self.ejemplos: dict[str, Path] = {}
         self.variable_optimizar = tk.BooleanVar(value=True)
         self.variable_ejecutar = tk.BooleanVar(value=True)
+        self._id_validacion: str | None = None
+        self._diagnosticos: list[Diagnostico] = []
+        self._dibujo_ansi = ""
+        self._ventana_dibujo: tk.Toplevel | None = None
+        self._lienzo_grande: LienzoAnsi | None = None
 
         self._construir_interfaz()
+        self.editor.bind("<<Modified>>", self._editor_modificado)
         self._cargar_ejemplos()
         self.cargar_archivo(RAIZ / "src" / "programa.src")
         self._establecer_estado("Listo. Escribe codigo Numlang y pulsa Compilar.")
+        self._revisar_codigo()
         self.after(100, self._procesar_cola)
 
     def _construir_interfaz(self) -> None:
@@ -117,6 +126,7 @@ class AplicacionNumlang(tk.Tk):
             marco_editor, wrap=tk.WORD, font=("Consolas", 11), height=12
         )
         self.editor.pack(fill=tk.BOTH, expand=True)
+        self.editor.tag_configure("error_en_vivo", foreground="#B91C1C", background="#FFF1F2", underline=True)
         self.editor.bind("<Control-Return>", lambda _evento: self._iniciar_compilacion())
 
         barra = ttk.Frame(marco_editor)
@@ -140,6 +150,21 @@ class AplicacionNumlang(tk.Tk):
             barra, text="Ejecutar .exe", variable=self.variable_ejecutar
         ).pack(side=tk.LEFT)
 
+        marco_errores = ttk.LabelFrame(marco_editor, text=" Analizadores: errores en tiempo real (sin compilar) ", padding=4)
+        marco_errores.pack(fill=tk.X, pady=(7, 0))
+        self.resumen_errores = tk.StringVar(value="Sin errores detectados")
+        ttk.Label(marco_errores, textvariable=self.resumen_errores).pack(anchor=tk.W, pady=(0, 3))
+        columnas = ("fase", "linea", "detalle")
+        self.lista_errores = ttk.Treeview(marco_errores, columns=columnas, show="headings", height=4)
+        self.lista_errores.heading("fase", text="Analizador")
+        self.lista_errores.heading("linea", text="Linea")
+        self.lista_errores.heading("detalle", text="Error y sugerencia")
+        self.lista_errores.column("fase", width=105, minwidth=80, stretch=False)
+        self.lista_errores.column("linea", width=55, minwidth=50, stretch=False)
+        self.lista_errores.column("detalle", width=650, minwidth=250, stretch=True)
+        self.lista_errores.pack(fill=tk.X)
+        self.lista_errores.bind("<<TreeviewSelect>>", self._ir_al_error)
+
         marco_resultados = ttk.LabelFrame(paned, text=" Resultados ", padding=6)
         self.notebook = ttk.Notebook(marco_resultados)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -148,6 +173,16 @@ class AplicacionNumlang(tk.Tk):
         self.texto_cuadruplos = self._agregar_pestana("Cuadruplos")
         self.texto_asm = self._agregar_pestana("ASM generado")
         self.texto_reportes = self._agregar_pestana("Registros y memoria")
+
+        marco_vista = ttk.Frame(self.notebook)
+        fila_vista = ttk.Frame(marco_vista, padding=(8, 5))
+        fila_vista.pack(fill=tk.X)
+        ttk.Label(fila_vista, text="Salida 2D a color de Numlang (ajustada automaticamente)").pack(side=tk.LEFT)
+        ttk.Button(fila_vista, text="Abrir en ventana grande", command=self._abrir_vista_grande).pack(side=tk.RIGHT)
+        self.lienzo_2d = LienzoAnsi(marco_vista)
+        self.lienzo_2d.pack(fill=tk.BOTH, expand=True)
+        self.notebook.add(marco_vista, text="Vista 2D a color")
+        self.pestana_2d = marco_vista
 
         paned.add(marco_editor, weight=1)
         paned.add(marco_resultados, weight=1)
@@ -219,7 +254,86 @@ class AplicacionNumlang(tk.Tk):
     def _establecer_estado(self, mensaje: str) -> None:
         self.etiqueta_estado.configure(text=mensaje)
 
+    def _editor_modificado(self, _evento: object) -> None:
+        """Cada cambio reprograma el chequeo (650 ms sin escribir)."""
+        if not self.editor.edit_modified():
+            return
+        self.editor.edit_modified(False)
+        if self._id_validacion is not None:
+            self.after_cancel(self._id_validacion)
+        self._id_validacion = self.after(650, self._revisar_codigo)
+
+    def _revisar_codigo(self) -> None:
+        """Valida el texto actual sin generar .asm ni ejecutar codigo."""
+        if self._id_validacion is not None:
+            self.after_cancel(self._id_validacion)
+            self._id_validacion = None
+        codigo = self.editor.get("1.0", "end-1c")
+        self._diagnosticos = analizar_en_vivo(codigo)
+        self.editor.tag_remove("error_en_vivo", "1.0", tk.END)
+        for item in self.lista_errores.get_children():
+            self.lista_errores.delete(item)
+        for indice, diag in enumerate(self._diagnosticos):
+            self.lista_errores.insert("", "end", iid=str(indice), values=(diag.fase, diag.linea, diag.mensaje))
+            inicio = f"{diag.linea}.{max(0, diag.columna - 1)}"
+            fin = f"{diag.linea}.{max(0, diag.columna - 1) + diag.longitud}"
+            self.editor.tag_add("error_en_vivo", inicio, fin)
+        if self._diagnosticos:
+            fases = {fase: sum(1 for d in self._diagnosticos if d.fase == fase)
+                     for fase in ("Lexico", "Sintactico", "Semantico")}
+            self.resumen_errores.set(
+                "Errores: " + str(len(self._diagnosticos)) + "  |  "
+                + "  |  ".join(f"{clave}: {cantidad}" for clave, cantidad in fases.items())
+                + "  (haz clic en un error para ir a la linea)"
+            )
+        else:
+            self.resumen_errores.set("Sin errores detectados mientras escribes")
+
+    def _ir_al_error(self, _evento: object) -> None:
+        seleccion = self.lista_errores.selection()
+        if not seleccion:
+            return
+        indice = int(seleccion[0])
+        if indice >= len(self._diagnosticos):
+            return
+        diag = self._diagnosticos[indice]
+        posicion = f"{diag.linea}.{max(0, diag.columna - 1)}"
+        self.editor.mark_set(tk.INSERT, posicion)
+        self.editor.see(posicion)
+        self.editor.focus_set()
+
+    def _abrir_vista_grande(self) -> None:
+        """Abre una ventana independiente para ver el logo COMPLETO y a color."""
+        if not self._dibujo_ansi:
+            messagebox.showinfo("Vista 2D", "Primero compila y ejecuta un .src con salida ANSI a color.")
+            return
+        if self._ventana_dibujo is not None and self._ventana_dibujo.winfo_exists():
+            self._ventana_dibujo.lift()
+            self._ventana_dibujo.focus_force()
+            return
+        ventana = tk.Toplevel(self)
+        ventana.title("Numlang - Dibujo 2D a color")
+        ventana.geometry("940x800")
+        ventana.minsize(360, 280)
+        marco = ttk.Frame(ventana, padding=7)
+        marco.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(marco, text="Imagen renderizada desde la salida .src (UTF-8 + ANSI TrueColor)").pack(anchor="w", pady=(0, 4))
+        lienzo = LienzoAnsi(marco)
+        lienzo.pack(fill=tk.BOTH, expand=True)
+        lienzo.mostrar(self._dibujo_ansi)
+        self._ventana_dibujo = ventana
+        self._lienzo_grande = lienzo
+        def cerrar() -> None:
+            self._ventana_dibujo = None
+            self._lienzo_grande = None
+            ventana.destroy()
+        ventana.protocol("WM_DELETE_WINDOW", cerrar)
+
     def _limpiar(self) -> None:
+        self._dibujo_ansi = ""
+        self.lienzo_2d.mostrar("")
+        if self._lienzo_grande is not None and self._ventana_dibujo is not None and self._ventana_dibujo.winfo_exists():
+            self._lienzo_grande.mostrar("")
         self._reemplazar_editor("")
         for widget in (
             self.texto_salida,
@@ -228,6 +342,7 @@ class AplicacionNumlang(tk.Tk):
             self.texto_reportes,
         ):
             self._escribir_texto(widget, "")
+        self._revisar_codigo()
         self._establecer_estado("Editor y resultados limpios.")
 
     def _abrir_archivo(self) -> None:
@@ -265,6 +380,16 @@ class AplicacionNumlang(tk.Tk):
         if ejecutar is None:
             ejecutar = self.variable_ejecutar.get()
         codigo = self.editor.get("1.0", tk.END)
+        self._revisar_codigo()
+        if self._diagnosticos:
+            primera = self._diagnosticos[0]
+            self.lista_errores.selection_set("0")
+            self.lista_errores.see("0")
+            self._establecer_estado(
+                f"Compilacion detenida: {len(self._diagnosticos)} error(es). "
+                f"Primer error: {primera.fase}, linea {primera.linea}."
+            )
+            return
         if not codigo.strip():
             messagebox.showwarning("Numlang", "Escribe instrucciones Numlang primero.")
             return
@@ -299,7 +424,22 @@ class AplicacionNumlang(tk.Tk):
                 boton.configure(state="normal")
             if tipo == "ok":
                 resultado = dict(datos)
-                self._escribir_texto(self.texto_salida, resultado["salida"])
+                salida = resultado["salida"]
+                dibujo = tiene_dibujo_ansi(salida)
+                # Evitar que Tk muestre los caracteres de control ANSI como basura.
+                self._escribir_texto(self.texto_salida, sin_codigos_ansi(salida))
+                if dibujo:
+                    self._dibujo_ansi = salida
+                    self.lienzo_2d.mostrar(salida)
+                    self.notebook.select(self.pestana_2d)
+                    self._abrir_vista_grande()
+                else:
+                    self._dibujo_ansi = ""
+                    self.lienzo_2d.mostrar("")
+                    if self._ventana_dibujo is not None and self._ventana_dibujo.winfo_exists():
+                        self._ventana_dibujo.destroy()
+                        self._ventana_dibujo = None
+                        self._lienzo_grande = None
                 self._escribir_texto(self.texto_cuadruplos, resultado["cuadruplos"])
                 self._escribir_texto(self.texto_asm, resultado["asm"])
                 self._escribir_texto(self.texto_reportes, resultado["reporte"])

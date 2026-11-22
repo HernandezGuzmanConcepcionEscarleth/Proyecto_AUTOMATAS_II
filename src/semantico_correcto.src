@@ -1,0 +1,6 @@
+nota: ANALISIS SEMANTICO - CORRECTO
+nota: Todas las variables estan declaradas y son del tipo num.
+num a = 10
+num b = 2
+num resultado = a / b + 3
+mostrar resultado
