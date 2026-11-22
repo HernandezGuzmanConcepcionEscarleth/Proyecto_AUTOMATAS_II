@@ -1,0 +1,6 @@
+nota: ANALISIS SINTACTICO - INCORRECTO
+nota: Se repite un operador y se escribe mal la palabra mostrar.
+num a = 4
+num b = 3
+num resultado = a + * b
+mostar a

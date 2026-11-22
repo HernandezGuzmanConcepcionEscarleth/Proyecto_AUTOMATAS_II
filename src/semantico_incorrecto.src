@@ -1,0 +1,7 @@
+nota: ANALISIS SEMANTICO - INCORRECTO
+nota: Variables duplicadas, no declaradas, tipos incompatibles y division entre cero.
+num a = 4
+num a = 8
+num resultado = inexistente + 2
+num texto = "hola"
+num cociente = 10 / 0

@@ -1,0 +1,6 @@
+nota: ANALISIS SINTACTICO - CORRECTO
+nota: Multiplicacion antes que suma, con expresiones bien formadas.
+num a = 4
+num b = 3
+num resultado = a + b * 2
+mostrar resultado

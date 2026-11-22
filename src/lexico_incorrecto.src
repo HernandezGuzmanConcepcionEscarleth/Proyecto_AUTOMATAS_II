@@ -1,0 +1,4 @@
+nota: ANALISIS LEXICO - INCORRECTO
+nota: El caracter @ no pertenece a los tokens de Numlang.
+num cantidad = 12
+mostrar cantidad @ 3

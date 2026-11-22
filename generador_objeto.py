@@ -444,10 +444,12 @@ def ensamblar_enlazar_ejecutar(asm: Path) -> tuple[bool, str]:
         if resultado.returncode != 0:
             return False, "Fallo al ejecutar: " + " ".join(paso) + "\n" + resultado.stderr.strip()
 
-    resultado = subprocess.run([str(exe)], capture_output=True, text=True, shell=False)
-    salida = resultado.stdout.replace("\r\n", "\n")
+    # Los literales Numlang se graban en UTF-8 en el ASM. En Windows, text=True
+    # usa a menudo cp1252/cp850 y rompe caracteres como █, ▀, ▄.
+    resultado = subprocess.run([str(exe)], capture_output=True, text=False, shell=False)
+    salida = resultado.stdout.decode("utf-8", errors="replace").replace("\r\n", "\n")
     if resultado.stderr:
-        salida += "\n" + resultado.stderr.replace("\r\n", "\n")
+        salida += "\n" + resultado.stderr.decode("utf-8", errors="replace").replace("\r\n", "\n")
     return resultado.returncode == 0, salida.rstrip("\n")
 
 

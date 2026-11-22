@@ -1,0 +1,5 @@
+nota: Demostracion general: un error por analizador.
+num a = 4
+num a = 8
+mostrar a @ 2
+mostrar a + * 2

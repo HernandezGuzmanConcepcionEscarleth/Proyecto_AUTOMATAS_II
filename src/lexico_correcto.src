@@ -1,0 +1,5 @@
+nota: ANALISIS LEXICO - CORRECTO
+nota: Solo se usan simbolos validos de Numlang.
+num cantidad = 12
+num extra = 3
+mostrar cantidad + extra
