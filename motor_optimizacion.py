@@ -41,7 +41,7 @@ class MotorOptimizacion:
                         elif op == "/": 
                             if b == 0: raise ZeroDivisionError
                             r = a / b
-                        v_str = f"{r:g}" if r % 1 != 0 else str(int(r))
+                        v_str = repr(float(r))
                         self._registrar_cambio("Propagación de Constantes", f"'{arg1} {op} {arg2}' -> '{v_str}'")
                         c["op"] = "="; c["arg1"] = v_str; c["arg2"] = "-"
                         c["instruccion_equivalente"] = f"{res} = {v_str}"

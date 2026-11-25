@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import queue
+import re
 import sys
 import tempfile
 import threading
-import traceback
 from pathlib import Path
 from typing import Iterable, Mapping
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+from analizador_semantico import ErrorNumlang
 from asignador_registros import AsignadorRegistros
 from generador_objeto import (
     NasmWin32Backend,
@@ -20,6 +21,23 @@ from generador_objeto import (
     ensamblar_enlazar_ejecutar,
 )
 from gestor_memoria import GestorMemoria
+
+def formatear_error_compilacion(error: Exception) -> str:
+    if not isinstance(error, ErrorNumlang):
+        return f"Error interno: {type(error).__name__}: {error}"
+    mensaje = str(error).strip()
+    for encabezado in ("Errores semanticos:", "Errores semánticos detectados:"):
+        if mensaje.startswith(encabezado):
+            partes = [
+                parte.strip()
+                for parte in re.split(r"[;\n]", mensaje[len(encabezado):])
+                if parte.strip()
+            ]
+            if partes:
+                return "\n".join(["Error de compilación", *partes])
+            return "Error de compilación"
+    return f"Error de compilación\n{mensaje}"
+
 
 RAIZ = Path(__file__).resolve().parent
 DIRECTORIO_BUILD = RAIZ / "build"
@@ -284,8 +302,8 @@ class AplicacionNumlang(tk.Tk):
     def _trabajar(self, codigo: str, ejecutar: bool, optimizar: bool) -> None:
         try:
             resultado = procesar_codigo(codigo, ejecutar, optimizar)
-        except Exception:
-            self.cola.put(("error", traceback.format_exc()))
+        except Exception as error:
+            self.cola.put(("error", formatear_error_compilacion(error)))
             return
         self.cola.put(("ok", resultado))
 

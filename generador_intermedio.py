@@ -5,12 +5,13 @@ Integrado con el analizador semántico del Integrante 1.
 
 import ast
 import json
+import math
 import re
 import sys
 from pathlib import Path
 
 # IMPORTACIÓN DEL INTEGRANTE 1
-from analizador_semantico import analizar_codigo, ErrorNumlang
+from analizador_semantico import analizar_codigo, ErrorNumlang, menos_unario_esta_parentizado
 
 # =====================================================================
 # 1. CONVERSIÓN DE NOTACIONES (INFIJA, PREFIJA Y POSTFIJA)
@@ -221,6 +222,10 @@ def crear_arbol_extendido(expresion: str) -> dict:
             if isinstance(nodo.value, str):
                 return {"tipo": "cadena", "valor": nodo.value}
         if isinstance(nodo, ast.Name):
+            if nodo.id == "PI":
+                return {"tipo": "numero", "valor": math.pi}
+            if nodo.id == "Eu":
+                return {"tipo": "numero", "valor": math.e}
             return {"tipo": "variable", "nombre": nodo.id}
         if isinstance(nodo, ast.Attribute) and isinstance(nodo.value, ast.Name):
             return {"tipo": "variable", "nombre": f"{nodo.value.id}.{nodo.attr}"}
@@ -252,7 +257,18 @@ def crear_arbol_extendido(expresion: str) -> dict:
             return actual
         if isinstance(nodo, ast.UnaryOp):
             if isinstance(nodo.op, ast.USub):
-                return {"tipo": "negativo", "expresion": convertir(nodo.operand)}
+                interno = convertir(nodo.operand)
+                if (
+                    interno.get("tipo") == "operacion"
+                    and interno.get("operador") == "elevado_a"
+                    and not menos_unario_esta_parentizado(expr_limpia, nodo)
+                ):
+                    return {
+                        "tipo": "operacion", "operador": "elevado_a",
+                        "izquierda": {"tipo": "negativo", "expresion": interno["izquierda"]},
+                        "derecha": interno["derecha"],
+                    }
+                return {"tipo": "negativo", "expresion": interno}
             if isinstance(nodo.op, ast.Not):
                 return {"tipo": "negacion_logica", "expresion": convertir(nodo.operand)}
         if isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name):
@@ -279,6 +295,7 @@ class GeneradorCodigoIntermedio:
         self.contadores_etiquetas = {}
         self.notaciones_registradas = []
         self.estructuras = {}
+        self.textos_resolver = {}
 
     def nuevoTemp(self) -> str:
         """Genera una nueva variable temporal (t1, t2, t3, ...)."""
@@ -343,7 +360,7 @@ class GeneradorCodigoIntermedio:
         """Recorre el árbol de expresión en postorden emitiendo cuádrupletas."""
         tipo = nodo["tipo"]
         if tipo == "numero":
-            return f"{nodo['valor']:g}"
+            return repr(float(nodo["valor"]))
         if tipo == "cadena":
             return f'"{nodo["valor"]}"'
         if tipo == "booleano":
@@ -387,9 +404,15 @@ class GeneradorCodigoIntermedio:
     def compilar_programa(self, codigo: str) -> dict:
         """Procesa un programa completo en Numlang y genera todas las representaciones."""
         # --- INTEGRACIÓN: LLAMADA AL ANALIZADOR SEMÁNTICO ---
-        resultado_semantico = analizar_codigo(codigo)
+        resultado_semantico = analizar_codigo(codigo, mostrar_resolucion=False)
         if not resultado_semantico["valido"]:
             raise ErrorNumlang("Errores semánticos detectados:\n" + "\n".join(resultado_semantico["errores"]))
+
+        self.textos_resolver = {
+            nodo["linea"]: nodo["texto"]
+            for nodo in resultado_semantico["arboles"]
+            if nodo.get("instruccion") == "resolver" and "texto" in nodo
+        }
 
         lineas_limpias = []
         for num_linea, texto in enumerate(codigo.splitlines(), start=1):
@@ -560,15 +583,17 @@ class GeneradorCodigoIntermedio:
                 continue
 
             # 6. INSTRUCCIONES SIMPLES
-            self._procesar_instruccion_simple(texto)
+            self._procesar_instruccion_simple(texto, num_linea)
             i += 1
 
-    def _procesar_instruccion_simple(self, texto: str):
+    def _procesar_instruccion_simple(self, texto: str, numero_linea=0):
         m_decl = re.fullmatch(r"(?:const\s+)?(num|msj|bool)\s+([a-zA-Z_]\w*)\s*=\s*(.+)", texto)
         m_asig = re.fullmatch(r"([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?)\s*=\s*(.+)", texto)
         m_mostrar = re.fullmatch(r"mostrar\s+(.+)", texto)
         m_retornar = re.fullmatch(r"retornar\s+(.+)", texto)
         m_llamar = re.fullmatch(r"llamar\s+([a-zA-Z_]\w*)\s*\((.*?)\)", texto)
+        m_ecu = re.fullmatch(r"ecu\s+([a-zA-Z_]\w*)\s*:\s*([^=]+?)\s*=\s*(.+)", texto)
+        m_resolver = re.fullmatch(r"resolver\s+([a-zA-Z_]\w*)\s+para\s+([a-zA-Z_]\w*)", texto)
 
         if m_decl:
             tipo_var, nombre, expr_str = m_decl.groups()
@@ -598,6 +623,24 @@ class GeneradorCodigoIntermedio:
                 lugar_arg = self.generar_expresion(crear_arbol_extendido(arg))
                 self.gen("param", lugar_arg, "-", "-", f"Pasa parámetro {lugar_arg}")
             self.gen("llamar", nombre_fn, str(len(args)), "-", f"Invoca procedimiento {nombre_fn}")
+            return
+
+        if m_ecu:
+            _, expr_izq, expr_der = m_ecu.groups()
+            crear_arbol_extendido(expr_izq)
+            crear_arbol_extendido(expr_der)
+            return
+
+        if m_resolver:
+            texto_resolucion = self.textos_resolver.get(numero_linea)
+            if texto_resolucion is not None:
+                self.gen(
+                    "mostrar",
+                    f'"{texto_resolucion}"',
+                    "-",
+                    "-",
+                    f"Imprime la solución {texto_resolucion}",
+                )
             return
 
         if m_asig:

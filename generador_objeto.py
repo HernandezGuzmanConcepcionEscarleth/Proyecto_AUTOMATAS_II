@@ -454,7 +454,7 @@ def ensamblar_enlazar_ejecutar(asm: Path) -> tuple[bool, str]:
 def compilar_cuadruplos(ruta: Path, optimizar: bool) -> tuple[list[dict[str, str]], dict, dict]:
     """Ejecuta analisis, generacion intermedia y optimizacion."""
     codigo = ruta.read_text(encoding="utf-8")
-    analisis = analizar_codigo(codigo)
+    analisis = analizar_codigo(codigo, mostrar_resolucion=False)
     if not analisis["valido"]:
         raise ErrorNumlang("Errores semanticos: " + "; ".join(analisis["errores"]))
 

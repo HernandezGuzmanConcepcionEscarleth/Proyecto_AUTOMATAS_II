@@ -9,14 +9,12 @@
 section .data
 fmt_int: db "%d", 10, 0
 fmt_str: db "%s", 10, 0
-v_x: dd 5
-    times 4 db 0
-v_w: dd 11
-    times 4 db 0
-cad_1: db "mayor", 0
-cad_2: db "menor", 0
+cad_1: db "x = 5", 0
+cad_2: db "x = 3, x = 2", 0
 
 section .bss
+v_e1: resb 8
+v_e2: resb 8
 
 section .text
 global _main
@@ -30,31 +28,7 @@ _main:
     push esi
     push edi
     
-    ; (=, 5, -, x)
-    mov eax, 5
-    mov [v_x], eax
-    ; (*, x, 2, t1)
-    mov eax, [v_x]
-    imul eax, 2
-    mov ebx, eax
-    ; (+, t1, 1, t2)
-    mov eax, ebx
-    add eax, 1
-    mov esi, eax
-    ; (=, t2, -, w)
-    mov eax, esi
-    mov [v_w], eax
-    ; (>, w, 10, t3)
-    mov eax, [v_w]
-    cmp eax, 10
-    setg al
-    movzx eax, al
-    mov edi, eax
-    ; (if_false, t3, -, Lfalso)
-    mov eax, edi
-    test eax, eax
-    jz L_Lfalso
-    ; (mostrar, "mayor", -, -)
+    ; (mostrar, "x = 5", -, -)
     ; alineacion de pila: se reconstruye desde EBP
     mov esp, ebp
     sub esp, 12
@@ -66,11 +40,7 @@ _main:
     ; llamador limpia argumentos cdecl
     mov esp, ebp
     sub esp, 12
-    ; (goto, -, -, Lfin)
-    jmp L_Lfin
-    ; (etiqueta, -, -, Lfalso)
-L_Lfalso:
-    ; (mostrar, "menor", -, -)
+    ; (mostrar, "x = 3, x = 2", -, -)
     ; alineacion de pila: se reconstruye desde EBP
     mov esp, ebp
     sub esp, 12
@@ -82,8 +52,6 @@ L_Lfalso:
     ; llamador limpia argumentos cdecl
     mov esp, ebp
     sub esp, 12
-    ; (etiqueta, -, -, Lfin)
-L_Lfin:
     mov eax, 0
     
     ; --- epilogo de _main ---

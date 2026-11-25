@@ -45,11 +45,11 @@ class InterpretadorReferencia:
                 if isinstance(valor, str):
                     return valor
                 try:
-                    return int(float(valor))
+                    return float(valor)
                 except (TypeError, ValueError):
                     return 0
             raise AssertionError(f"Simbolo desconocido en el interprete: {texto}")
-        return int(numero) if numero.is_integer() else numero
+        return numero
 
     def _guardar(self, nombre, valor):
         if nombre != "-":
@@ -58,6 +58,12 @@ class InterpretadorReferencia:
     @staticmethod
     def _binario(valor):
         return 1 if valor else 0
+
+    @staticmethod
+    def _formatear(valor):
+        if isinstance(valor, float) and valor.is_integer():
+            return str(int(valor))
+        return str(valor)
 
     def ejecutar(self):
         for indice, cuad in enumerate(self.cuadruplos):
@@ -88,7 +94,7 @@ class InterpretadorReferencia:
             elif op in ("%", "residuo_de"):
                 self._guardar(res, residuo_entero(self._valor(arg1), self._valor(arg2)))
             elif op in ("elevado_a", "**"):
-                self._guardar(res, int(self._valor(arg1)) ** int(self._valor(arg2)))
+                self._guardar(res, self._valor(arg1) ** self._valor(arg2))
             elif op == ">":
                 self._guardar(res, int(self._valor(arg1) > self._valor(arg2)))
             elif op == "<":
@@ -118,7 +124,7 @@ class InterpretadorReferencia:
                     siguiente = self.etiquetas[res]
             elif op == "mostrar":
                 valor = self._valor(arg1)
-                self.salida.append(str(valor))
+                self.salida.append(self._formatear(valor))
             elif op == "param":
                 self.parametros.append(self._valor(arg1))
             elif op == "llamar":
