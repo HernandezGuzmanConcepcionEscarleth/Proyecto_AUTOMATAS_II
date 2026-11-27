@@ -1,5 +1,3 @@
-"""Numlang - Integrante 1: Analizador Semántico (Actualizado Fase 2)."""
-
 import ast
 import json
 import math
@@ -12,7 +10,6 @@ TOL_DISCRIMINANTE = 1e-9
 
 
 def _normalizar_operadores_verbones(expresion: str) -> str:
-    """Traduce operadores verbales de Numlang a operadores de Python."""
     partes = re.split(r'("[^"]*"|\'[^\']*\')', expresion)
     for i in range(0, len(partes), 2):
         partes[i] = re.sub(r"\belevado_a\b", "**", partes[i])
@@ -20,7 +17,6 @@ def _normalizar_operadores_verbones(expresion: str) -> str:
 
 
 def menos_unario_esta_parentizado(expresion: str, nodo: ast.UnaryOp) -> bool:
-    """True si hay '(' entre el '-' y el operando, usando offsets UTF-8."""
     inicio = nodo.col_offset + 1
     fin = nodo.operand.col_offset
     return b"(" in expresion.encode("utf-8")[inicio:fin]
@@ -31,7 +27,6 @@ class ErrorNumlang(Exception):
 
 
 def crear_arbol(expresion):
-    """Convierte una expresión en un árbol simple (diccionarios)."""
     fuente = _normalizar_operadores_verbones(expresion)
     try:
         raiz = ast.parse(fuente, mode="eval").body
@@ -316,7 +311,7 @@ class AnalizadorSemantico:
         raise ErrorNumlang("Tipo de nodo desconocido en la ecuación")
 
     def _incognitas_en_arbol(self, nodo, encontradas):
-        """Recorre E1/E2 y acumula IDs no declarados, deduplicados por nombre."""
+        
         tipo = nodo["tipo"]
         if tipo == "variable":
             if nodo["nombre"] not in self.simbolos:

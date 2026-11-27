@@ -1,5 +1,3 @@
-"""Gestion de segmentos y marco de pila para el backend NASM win32 de Numlang."""
-
 from __future__ import annotations
 
 import math
@@ -10,7 +8,6 @@ from typing import Iterable, Mapping
 
 @dataclass
 class EntradaMemoria:
-    """Una entrada de .data o .bss con su tamano en bytes."""
 
     etiqueta: str
     contenido: str
@@ -19,7 +16,6 @@ class EntradaMemoria:
 
 
 def cadena_nasm(texto: str) -> str:
-    """Convierte una cadena de Numlang a bytes NASM terminados en 0."""
     datos = texto.encode("utf-8")
     imprimible = all(32 <= byte <= 126 for byte in datos)
     if imprimible and '"' not in texto and "\\" not in texto:
@@ -30,7 +26,6 @@ def cadena_nasm(texto: str) -> str:
 
 
 def entero_nasm(valor: object) -> int:
-    """Normaliza booleanos y numeros del analizador a enteros de 32 bits."""
     if isinstance(valor, bool):
         return 1 if valor else 0
     try:
@@ -40,7 +35,6 @@ def entero_nasm(valor: object) -> int:
 
 
 class GestorMemoria:
-    """Construye .data, .bss y documenta el marco de pila de _main."""
 
     def __init__(
         self,

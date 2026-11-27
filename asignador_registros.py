@@ -1,9 +1,3 @@
-"""Asignacion de registros para temporales del codigo intermedio de Numlang.
-
-Registros scratch: EAX, ECX, EDX (caller-saved, no guardan temporales vivos).
-Registros asignables: EBX, ESI, EDI (callee-saved, preservados por _main).
-ESP y EBP quedan reservados para el marco de pila.
-"""
 
 from __future__ import annotations
 
@@ -19,8 +13,6 @@ PATRON_TEMPORAL = re.compile(r"^t\d+$")
 
 @dataclass
 class Asignacion:
-    """Ubicacion elegida para un temporal."""
-
     nombre: str
     inicio: int
     fin: int
@@ -30,8 +22,6 @@ class Asignacion:
 
 
 class AsignadorRegistros:
-    """Asigna EBX/ESI/EDI a temporales con linear scan y spill en [ebp-N]."""
-
     def __init__(
         self,
         cuadruplos: Iterable[Mapping[str, str]],
@@ -49,7 +39,6 @@ class AsignadorRegistros:
         self._asignar()
 
     def _intervalos(self) -> dict[str, tuple[int, int]]:
-        """Devuelve inicio/fin (indice de cuadruplo) de cada temporal."""
         intervalos: dict[str, tuple[int, int]] = {}
         for indice, cuad in enumerate(self.cuadruplos):
             for campo in ("arg1", "arg2", "res"):
@@ -64,7 +53,7 @@ class AsignadorRegistros:
         return intervalos
 
     def _liberar(self, activos: dict[str, Asignacion], indice: int) -> None:
-        """Devuelve registros y slots de los temporales que ya murieron."""
+        
         for nombre in list(activos):
             asignacion = activos[nombre]
             if asignacion.fin >= indice:
@@ -102,7 +91,6 @@ class AsignadorRegistros:
             self.tabla[nombre] = asignacion
 
     def tabla_asignacion(self) -> dict[str, str]:
-        """Mapa nombre -> registro o direccion de memoria listo para mostrar."""
         resultado = {
             nombre: (
                 asignacion.ubicacion.upper()
@@ -119,25 +107,21 @@ class AsignadorRegistros:
         return resultado
 
     def ubicacion_asm(self, nombre: str) -> str | None:
-        """Devuelve el operando NASM de un temporal, o None si no es temporal."""
         asignacion = self.tabla.get(nombre)
         return asignacion.ubicacion if asignacion else None
 
     @property
     def bytes_spills(self) -> int:
-        """Bytes reservados en el marco de pila para temporales derramados."""
         return max(0, self.siguiente_slot - self.base_spill)
 
     @property
     def registros_usados(self) -> list[str]:
-        """Registros callee-saved que deben preservarse en el prologo."""
         usados = {
             a.ubicacion for a in self.tabla.values() if a.tipo == "registro"
         }
         return [r for r in REGISTROS_TEMPORALES if r in usados]
 
     def reporte(self) -> str:
-        """Reporte legible de la asignacion de registros y memoria."""
         lineas = [
             "MAPA DE REGISTROS (NASM x86-32 Windows)",
             "  Scratch (caller-saved): " + ", ".join(r.upper() for r in REGISTROS_SCRATCH),

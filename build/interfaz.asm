@@ -9,12 +9,12 @@
 section .data
 fmt_int: db "%d", 10, 0
 fmt_str: db "%s", 10, 0
-cad_1: db "x = 5", 0
-cad_2: db "x = 3, x = 2", 0
+v_a: dd 7
+    times 4 db 0
+v_resultado: dd 7
+    times 4 db 0
 
 section .bss
-v_e1: resb 8
-v_e2: resb 8
 
 section .text
 global _main
@@ -28,26 +28,24 @@ _main:
     push esi
     push edi
     
-    ; (mostrar, "x = 5", -, -)
+    ; (+, 4.0, 3.0, t1)
+    mov eax, 4
+    add eax, 3
+    mov ebx, eax
+    ; (=, t1, -, a)
+    mov eax, ebx
+    mov [v_a], eax
+    ; (=, a, -, resultado)
+    mov eax, [v_a]
+    mov [v_resultado], eax
+    ; (mostrar, resultado, -, -)
     ; alineacion de pila: se reconstruye desde EBP
     mov esp, ebp
     sub esp, 12
     and esp, -16
     sub esp, 8
-    push dword cad_1
-    push dword fmt_str
-    call _printf
-    ; llamador limpia argumentos cdecl
-    mov esp, ebp
-    sub esp, 12
-    ; (mostrar, "x = 3, x = 2", -, -)
-    ; alineacion de pila: se reconstruye desde EBP
-    mov esp, ebp
-    sub esp, 12
-    and esp, -16
-    sub esp, 8
-    push dword cad_2
-    push dword fmt_str
+    push dword [v_resultado]
+    push dword fmt_int
     call _printf
     ; llamador limpia argumentos cdecl
     mov esp, ebp

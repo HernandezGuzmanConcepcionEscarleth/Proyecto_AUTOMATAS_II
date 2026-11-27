@@ -42,4 +42,4 @@ Las siguientes palabras no pueden usarse como nombres de variables:
 - **Integrante 1:** Análisis Semántico.
 - **Integrante 2:** Generación de Código Intermedio.
 - **Integrante 3:** Motor de Optimización. 
-- **Integrante 4:** Generacion de codigo objeto. 
+- **Jarquin Rivera Orlando Miguel:** Generacion de codigo objeto. 
